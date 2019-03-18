@@ -34,9 +34,11 @@ import hudson.model.UsageStatistics;
 import jenkins.model.Jenkins;
 import jenkins.util.SystemProperties;
 import net.sf.json.JSONObject;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -54,9 +56,12 @@ import java.util.logging.Logger;
 /**
  * Extension point for collecting JEP-214 telemetry.
  *
- * @see <a href="https://github.com/jenkinsci/jep/tree/master/jep/214">JEP-214</a>
+ * Implementations should provide a <code>description.jelly</code> file with additional details about their purpose and
+ * behavior which will be included in <code>help-usageStatisticsCollected.jelly</code> for {@link UsageStatistics}.
  *
- * @since TODO
+ * @see <a href="https://jenkins.io/jep/214">JEP-214</a>
+ *
+ * @since 2.143
  */
 public abstract class Telemetry implements ExtensionPoint {
 
@@ -68,16 +73,18 @@ public abstract class Telemetry implements ExtensionPoint {
     private static final Logger LOGGER = Logger.getLogger(Telemetry.class.getName());
 
     /**
-     * ID of this collector, typically a basic alphanumeric string (and _- characters).
+     * ID of this collector, typically an alphanumeric string (and punctuation).
      *
      * Good IDs are globally unique and human readable (i.e. no UUIDs).
      *
      * For a periodically updated list of all public implementations, see https://jenkins.io/doc/developer/extensions/jenkins-core/#telemetry
-     * 
+     *
      * @return ID of the collector, never null or empty
      */
     @Nonnull
-    public abstract String getId();
+    public String getId() {
+        return getClass().getName();
+    }
 
     /**
      * User friendly display name for this telemetry collector, ideally localized.
@@ -112,13 +119,26 @@ public abstract class Telemetry implements ExtensionPoint {
      *
      * This method is called periodically, once per content submission.
      *
-     * @return
+     * @return The JSON payload, or null if no content should be submitted.
      */
-    @Nonnull
+    @CheckForNull
     public abstract JSONObject createContent();
 
     public static ExtensionList<Telemetry> all() {
         return ExtensionList.lookup(Telemetry.class);
+    }
+
+    /**
+     * @since 2.147
+     * @return whether to collect telemetry
+     */
+    public static boolean isDisabled() {
+        if (UsageStatistics.DISABLED) {
+            return true;
+        }
+        Jenkins jenkins = Jenkins.getInstanceOrNull();
+
+        return jenkins == null || !jenkins.isUsageStatisticsCollected();
     }
 
     @Extension
@@ -135,7 +155,7 @@ public abstract class Telemetry implements ExtensionPoint {
 
         @Override
         protected void execute(TaskListener listener) throws IOException, InterruptedException {
-            if (UsageStatistics.DISABLED || !Jenkins.getInstance().isUsageStatisticsCollected()) {
+            if (isDisabled()) {
                 LOGGER.info("Collection of anonymous usage statistics is disabled, skipping telemetry collection and submission");
                 return;
             }
@@ -156,10 +176,16 @@ public abstract class Telemetry implements ExtensionPoint {
                     LOGGER.log(Level.WARNING, "Failed to build telemetry content for: '" + telemetry.getId() + "'", e);
                 }
 
+                if (data == null) {
+                    LOGGER.log(Level.CONFIG, "Skipping telemetry for '" + telemetry.getId() + "' as it has no data");
+                    return;
+                }
+
                 JSONObject wrappedData = new JSONObject();
                 wrappedData.put("type", telemetry.getId());
                 wrappedData.put("payload", data);
-                wrappedData.put("correlator", ExtensionList.lookupSingleton(Correlator.class).getCorrelationId());
+                String correlationId = ExtensionList.lookupSingleton(Correlator.class).getCorrelationId();
+                wrappedData.put("correlator", DigestUtils.sha256Hex(correlationId + telemetry.getId()));
 
                 try {
                     URL url = new URL(ENDPOINT);
