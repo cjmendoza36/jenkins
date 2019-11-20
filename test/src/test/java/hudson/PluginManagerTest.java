@@ -253,7 +253,7 @@ public class PluginManagerTest {
     // org.jenkinsci.plugins.dependencytest.depender:
     //   public class Depender {
     //     public static String getValue() {
-    //       if (Jenkins.getInstance().getPlugin("dependee") != null) {
+    //       if (Jenkins.get().getPlugin("dependee") != null) {
     //         return Dependee.getValue();
     //       }
     //       return "depender";
@@ -457,8 +457,21 @@ public class PluginManagerTest {
     public void requireSystemDuringLoad() throws Exception {
         r.jenkins.setSecurityRealm(r.createDummySecurityRealm());
         r.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy());
-        try (ACLContext context = ACL.as(User.get("underprivileged").impersonate())) {
+        try (ACLContext context = ACL.as(User.getById("underprivileged", true).impersonate())) {
             dynamicLoad("require-system-during-load.hpi");
+        }
+    }
+
+
+    @Test
+    @Issue("JENKINS-59775")
+    public void requireSystemDuringStart() throws Exception {
+        r.jenkins.setSecurityRealm(r.createDummySecurityRealm());
+        r.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy());
+        String pluginShortName = "require-system-during-load";
+        dynamicLoad(pluginShortName + ".hpi");
+        try (ACLContext context = ACL.as(User.getById("underprivileged", true).impersonate())) {
+            r.jenkins.pluginManager.start(Collections.singletonList(r.jenkins.pluginManager.getPlugin(pluginShortName)));
         }
     }
 

@@ -210,11 +210,9 @@ public final class Secret implements Serializable {
         } else {
             try {
                 return HistoricalSecrets.decrypt(data, KEY);
-            } catch (GeneralSecurityException e) {
-                return null;
             } catch (UnsupportedEncodingException e) {
                 throw new Error(e); // impossible
-            } catch (IOException e) {
+            } catch (GeneralSecurityException | IOException e) {
                 return null;
             }
         }
@@ -299,14 +297,6 @@ public final class Secret implements Serializable {
      * The key that encrypts the data on disk.
      */
     private static final CryptoConfidentialKey KEY = new CryptoConfidentialKey(Secret.class.getName());
-
-    /**
-     * Reset the internal secret key for testing.
-     */
-    @Restricted(NoExternalUse.class)
-    /*package*/ static void resetKeyForTest() {
-        KEY.resetForTest();
-    }
 
     private static final long serialVersionUID = 1L;
 

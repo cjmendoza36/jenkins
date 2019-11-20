@@ -114,7 +114,7 @@ public class Util {
      */
     @Nonnull
     public static <T> List<T> filter( @Nonnull Iterable<?> base, @Nonnull Class<T> type ) {
-        List<T> r = new ArrayList<T>();
+        List<T> r = new ArrayList<>();
         for (Object i : base) {
             if(type.isInstance(i))
                 r.add(type.cast(i));
@@ -144,7 +144,7 @@ public class Util {
      */
     @Nullable
     public static String replaceMacro( @CheckForNull String s, @Nonnull Map<String,String> properties) {
-        return replaceMacro(s,new VariableResolver.ByMap<String>(properties));
+        return replaceMacro(s, new VariableResolver.ByMap<>(properties));
     }
 
     /**
@@ -185,11 +185,11 @@ public class Util {
     }
 
     /**
-     * Reads the entire contents of the text file at <code>logfile</code> into a
+     * Reads the entire contents of the text file at {@code logfile} into a
      * string using the {@link Charset#defaultCharset() default charset} for
      * decoding. If no such file exists, an empty string is returned.
      * @param logfile The text file to read in its entirety.
-     * @return The entire text content of <code>logfile</code>.
+     * @return The entire text content of {@code logfile}.
      * @throws IOException If an error occurs while reading the file.
      * @deprecated call {@link #loadFile(java.io.File, java.nio.charset.Charset)}
      * instead to specify the charset to use for decoding (preferably
@@ -202,12 +202,12 @@ public class Util {
     }
 
     /**
-     * Reads the entire contents of the text file at <code>logfile</code> into a
-     * string using <code>charset</code> for decoding. If no such file exists,
+     * Reads the entire contents of the text file at {@code logfile} into a
+     * string using {@code charset} for decoding. If no such file exists,
      * an empty string is returned.
      * @param logfile The text file to read in its entirety.
-     * @param charset The charset to use for decoding the bytes in <code>logfile</code>.
-     * @return The entire text content of <code>logfile</code>.
+     * @param charset The charset to use for decoding the bytes in {@code logfile}.
+     * @return The entire text content of {@code logfile}.
      * @throws IOException If an error occurs while reading the file.
      */
     @Nonnull
@@ -753,10 +753,12 @@ public class Util {
     /**
      * Get a human readable string representing strings like "xxx days ago",
      * which should be used to point to the occurrence of an event in the past.
+     * @deprecated Actually identical to {@link #getTimeSpanString}, does not add {@code ago}.
      */
+    @Deprecated
     @Nonnull
     public static String getPastTimeString(long duration) {
-        return Messages.Util_pastTime(getTimeSpanString(duration));
+        return getTimeSpanString(duration);
     }
 
 
@@ -783,7 +785,7 @@ public class Util {
      */
     @Nonnull
     public static <T> List<T> createSubList(@Nonnull Collection<?> source, @Nonnull Class<T> type ) {
-        List<T> r = new ArrayList<T>();
+        List<T> r = new ArrayList<>();
         for (Object item : source) {
             if(type.isInstance(item))
                 r.add(type.cast(item));
@@ -866,29 +868,52 @@ public class Util {
         CharBuffer buf = null;
         char c;
         for (int i = 0, m = s.length(); i < m; i++) {
-            c = s.charAt(i);
-            if (c > 122 || uriMap[c]) {
+            int codePoint = Character.codePointAt(s, i);
+            if((codePoint&0xffffff80)==0) { // 1 byte
+                c = s.charAt(i);
+                if (c > 122 || uriMap[c]) {
+                    if (!escaped) {
+                        out = new StringBuilder(i + (m - i) * 3);
+                        out.append(s, 0, i);
+                        escaped = true;
+                    }
+                    if (enc == null || buf == null) {
+                        enc = StandardCharsets.UTF_8.newEncoder();
+                        buf = CharBuffer.allocate(1);
+                    }
+                    // 1 char -> UTF8
+                    buf.put(0, c);
+                    buf.rewind();
+                    try {
+                        ByteBuffer bytes = enc.encode(buf);
+                        while (bytes.hasRemaining()) {
+                            byte b = bytes.get();
+                            out.append('%');
+                            out.append(toDigit((b >> 4) & 0xF));
+                            out.append(toDigit(b & 0xF));
+                        }
+                    } catch (CharacterCodingException ex) {
+                    }
+                } else if (escaped) {
+                    out.append(c);
+                }
+            } else {
                 if (!escaped) {
                     out = new StringBuilder(i + (m - i) * 3);
-                    out.append(s.substring(0, i));
-                    enc = StandardCharsets.UTF_8.newEncoder();
-                    buf = CharBuffer.allocate(1);
+                    out.append(s, 0, i);
                     escaped = true;
                 }
-                // 1 char -> UTF8
-                buf.put(0,c);
-                buf.rewind();
-                try {
-                    ByteBuffer bytes = enc.encode(buf);
-                    while (bytes.hasRemaining()) {
-                        byte b = bytes.get();
-                        out.append('%');
-                        out.append(toDigit((b >> 4) & 0xF));
-                        out.append(toDigit(b & 0xF));
-                    }
-                } catch (CharacterCodingException ex) { }
-            } else if (escaped) {
-                out.append(c);
+
+                byte[] bytes = new String(new int[] { codePoint }, 0, 1).getBytes(StandardCharsets.UTF_8);
+                for (byte aByte : bytes) {
+                    out.append('%');
+                    out.append(toDigit((aByte >> 4) & 0xF));
+                    out.append(toDigit(aByte & 0xF));
+                }
+
+                if(Character.charCount(codePoint) > 1) {
+                    i++; // we processed two characters
+                }
             }
         }
         return escaped ? out.toString() : s;
@@ -967,7 +992,7 @@ public class Util {
     /**
      * Creates an empty file if nonexistent or truncates the existing file.
      * Note: The behavior of this method in the case where the file already
-     * exists is unlike the POSIX <code>touch</code> utility which merely
+     * exists is unlike the POSIX {@code touch} utility which merely
      * updates the file's access and/or modification time.
      */
     public static void touch(@Nonnull File file) throws IOException {
@@ -1035,7 +1060,7 @@ public class Util {
      */
     @Nonnull
     public static <T> List<T> fixNull(@CheckForNull List<T> l) {
-        return fixNull(l, Collections.<T>emptyList());
+        return fixNull(l, Collections.emptyList());
     }
 
     /**
@@ -1049,7 +1074,7 @@ public class Util {
      */
     @Nonnull
     public static <T> Set<T> fixNull(@CheckForNull Set<T> l) {
-        return fixNull(l, Collections.<T>emptySet());
+        return fixNull(l, Collections.emptySet());
     }
 
     /**
@@ -1063,7 +1088,7 @@ public class Util {
      */
     @Nonnull
     public static <T> Collection<T> fixNull(@CheckForNull Collection<T> l) {
-        return fixNull(l, Collections.<T>emptySet());
+        return fixNull(l, Collections.emptySet());
     }
 
     /**
@@ -1077,7 +1102,7 @@ public class Util {
      */
     @Nonnull
     public static <T> Iterable<T> fixNull(@CheckForNull Iterable<T> l) {
-        return fixNull(l, Collections.<T>emptySet());
+        return fixNull(l, Collections.emptySet());
     }
 
     /**
@@ -1117,7 +1142,7 @@ public class Util {
         int size = 0;
         for (Collection<? extends T> item : items)
             size += item.size();
-        List<T> r = new ArrayList<T>(size);
+        List<T> r = new ArrayList<>(size);
         for (Collection<? extends T> item : items)
             r.addAll(item);
         return r;
@@ -1585,7 +1610,7 @@ public class Util {
     /**
      * If this flag is set to true then we will request a garbage collection
      * after a deletion failure before we next retry the delete.<br>
-     * It defaults to <code>false</code> and is ignored unless
+     * It defaults to {@code false} and is ignored unless
      * {@link #DELETION_MAX} is greater than 1.
      * <p>
      * Setting this flag to true <i>may</i> resolve some problems on Windows,

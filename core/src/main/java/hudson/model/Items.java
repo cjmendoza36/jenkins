@@ -41,7 +41,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -69,7 +68,7 @@ public class Items {
      *      Use {@link #all()} for read access and {@link Extension} for registration.
      */
     @Deprecated
-    public static final List<TopLevelItemDescriptor> LIST = (List)new DescriptorList<TopLevelItem>(TopLevelItem.class);
+    public static final List<TopLevelItemDescriptor> LIST = (List) new DescriptorList<>(TopLevelItem.class);
 
     /**
      * Used to behave differently when loading posted configuration as opposed to persisted configuration.
@@ -153,7 +152,7 @@ public class Items {
      * Returns all the registered {@link TopLevelItemDescriptor}s.
      */
     public static DescriptorExtensionList<TopLevelItem,TopLevelItemDescriptor> all() {
-        return Jenkins.getInstance().<TopLevelItem,TopLevelItemDescriptor>getDescriptorList(TopLevelItem.class);
+        return Jenkins.get().getDescriptorList(TopLevelItem.class);
     }
 
     /**
@@ -173,13 +172,13 @@ public class Items {
      * @since 1.607
      */
     public static List<TopLevelItemDescriptor> all(Authentication a, ItemGroup c) {
-        List<TopLevelItemDescriptor> result = new ArrayList<TopLevelItemDescriptor>();
+        List<TopLevelItemDescriptor> result = new ArrayList<>();
         ACL acl;
         if (c instanceof AccessControlled) {
             acl = ((AccessControlled) c).getACL();
         } else {
             // fall back to root
-            acl = Jenkins.getInstance().getACL();
+            acl = Jenkins.get().getACL();
         }
         for (TopLevelItemDescriptor d: all()) {
             if (acl.hasCreatePermission(a, c, d) && d.isApplicableIn(c)) {
@@ -192,6 +191,7 @@ public class Items {
     /**
      * @deprecated Underspecified what the parameter is. {@link Descriptor#getId}? A {@link Describable} class name?
      */
+    @Deprecated
     public static TopLevelItemDescriptor getDescriptor(String fqcn) {
         return Descriptor.find(all(), fqcn);
     }
@@ -222,9 +222,9 @@ public class Items {
      * Does the opposite of {@link #toNameList(Collection)}.
      */
     public static <T extends Item> List<T> fromNameList(ItemGroup context, @Nonnull String list, @Nonnull Class<T> type) {
-        final Jenkins jenkins = Jenkins.getInstance();
+        final Jenkins jenkins = Jenkins.get();
         
-        List<T> r = new ArrayList<T>();
+        List<T> r = new ArrayList<>();
         if (jenkins == null) {
             return r;
         }
@@ -250,7 +250,7 @@ public class Items {
         String[] c = context.getFullName().split("/");
         String[] p = path.split("/");
 
-        Stack<String> name = new Stack<String>();
+        Stack<String> name = new Stack<>();
         for (int i=0; i<c.length;i++) {
             if (i==0 && c[i].equals("")) continue;
             name.push(c[i]);
@@ -282,8 +282,8 @@ public class Items {
      * Computes the relative name of list of items after a rename or move occurred.
      * Used to manage job references as names in plugins to support {@link hudson.model.listeners.ItemListener#onLocationChanged}.
      * <p>
-     * In a hierarchical context, when a plugin has a reference to a job as <code>../foo/bar</code> this method will
-     * handle the relative path as "foo" is renamed to "zot" to compute <code>../zot/bar</code>
+     * In a hierarchical context, when a plugin has a reference to a job as {@code ../foo/bar} this method will
+     * handle the relative path as "foo" is renamed to "zot" to compute {@code ../zot/bar}
      *
      * @param oldFullName the old full name of the item
      * @param newFullName the new full name of the item
@@ -294,7 +294,7 @@ public class Items {
     public static String computeRelativeNamesAfterRenaming(String oldFullName, String newFullName, String relativeNames, ItemGroup context) {
 
         StringTokenizer tokens = new StringTokenizer(relativeNames,",");
-        List<String> newValue = new ArrayList<String>();
+        List<String> newValue = new ArrayList<>();
         while(tokens.hasMoreTokens()) {
             String relativeName = tokens.nextToken().trim();
             String canonicalName = getCanonicalName(context, relativeName);
@@ -400,14 +400,14 @@ public class Items {
      * @since 1.512
      */
     public static <T extends Item> List<T> getAllItems(final ItemGroup root, Class<T> type) {
-        List<T> r = new ArrayList<T>();
+        List<T> r = new ArrayList<>();
         getAllItems(root, type, r);
         return r;
     }
     private static <T extends Item> void getAllItems(final ItemGroup root, Class<T> type, List<T> r) {
-        List<Item> items = new ArrayList<Item>(((ItemGroup<?>) root).getItems());
+        List<Item> items = new ArrayList<>(((ItemGroup<?>) root).getItems());
         // because we add items depth first, we can use the quicker BY_NAME comparison
-        Collections.sort(items, BY_NAME);
+        items.sort(BY_NAME);
         for (Item i : items) {
             if (type.isInstance(i)) {
                 if (i.hasPermission(Item.READ)) {
@@ -466,11 +466,11 @@ public class Items {
      */
     public static @CheckForNull <T extends Item> T findNearest(Class<T> type, String name, ItemGroup context) {
         List<String> names = new ArrayList<>();
-        for (T item: Jenkins.getInstance().allItems(type)) {
+        for (T item: Jenkins.get().allItems(type)) {
             names.add(item.getRelativeNameFrom(context));
         }
         String nearest = EditDistance.findNearest(name, names);
-        return Jenkins.getInstance().getItem(nearest, context, type);
+        return Jenkins.get().getItem(nearest, context, type);
     }
 
     /**
@@ -528,9 +528,6 @@ public class Items {
             this.type = type;
         }
 
-        /**
-         * {@inheritDoc}
-         */
         @Override
         public Iterator<T> iterator() {
             return new AllItemsIterator();
@@ -557,17 +554,11 @@ public class Items {
                 stack.push(root);
             }
 
-            /**
-             * {@inheritDoc}
-             */
             @Override
             public void remove() {
                 throw new UnsupportedOperationException();
             }
 
-            /**
-             * {@inheritDoc}
-             */
             @Override
             public boolean hasNext() {
                 if (next != null) {
@@ -604,9 +595,6 @@ public class Items {
                 }
             }
 
-            /**
-             * {@inheritDoc}
-             */
             @Override
             public T next() {
                 if (!hasNext()) {

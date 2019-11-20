@@ -38,6 +38,7 @@ import hudson.model.listeners.ItemListener;
 import hudson.model.listeners.RunListener;
 import hudson.model.listeners.SaveableListener;
 import hudson.security.ACL;
+import hudson.security.ACLContext;
 import hudson.util.RobustReflectionConverter;
 import hudson.util.VersionNumber;
 import java.io.IOException;
@@ -78,7 +79,7 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
 public class OldDataMonitor extends AdministrativeMonitor {
     private static final Logger LOGGER = Logger.getLogger(OldDataMonitor.class.getName());
 
-    private ConcurrentMap<SaveableReference,VersionRange> data = new ConcurrentHashMap<SaveableReference,VersionRange>();
+    private ConcurrentMap<SaveableReference,VersionRange> data = new ConcurrentHashMap<>();
 
     /**
      * Gets instance of the monitor.
@@ -106,7 +107,7 @@ public class OldDataMonitor extends AdministrativeMonitor {
     }
 
     public Map<Saveable,VersionRange> getData() {
-        Map<Saveable,VersionRange> r = new HashMap<Saveable,VersionRange>();
+        Map<Saveable,VersionRange> r = new HashMap<>();
         for (Map.Entry<SaveableReference,VersionRange> entry : this.data.entrySet()) {
             Saveable s = entry.getKey().get();
             if (s != null) {
@@ -117,18 +118,15 @@ public class OldDataMonitor extends AdministrativeMonitor {
     }
 
     private static void remove(Saveable obj, boolean isDelete) {
-        Jenkins j = Jenkins.getInstance();
+        Jenkins j = Jenkins.get();
         OldDataMonitor odm = get(j);
-        SecurityContext oldContext = ACL.impersonate(ACL.SYSTEM);
-        try {
+        try (ACLContext ctx = ACL.as(ACL.SYSTEM)) {
             odm.data.remove(referTo(obj));
             if (isDelete && obj instanceof Job<?, ?>) {
                 for (Run r : ((Job<?, ?>) obj).getBuilds()) {
                     odm.data.remove(referTo(r));
                 }
             }
-        } finally {
-            SecurityContextHolder.setContext(oldContext);
         }
     }
 
@@ -166,7 +164,7 @@ public class OldDataMonitor extends AdministrativeMonitor {
      * @param version Hudson release when the data structure changed.
      */
     public static void report(Saveable obj, String version) {
-        OldDataMonitor odm = get(Jenkins.getInstance());
+        OldDataMonitor odm = get(Jenkins.get());
         try {
             SaveableReference ref = referTo(obj);
             while (true) {
@@ -294,7 +292,7 @@ public class OldDataMonitor extends AdministrativeMonitor {
      */
     @Restricted(NoExternalUse.class)
     public Iterator<VersionNumber> getVersionList() {
-        TreeSet<VersionNumber> set = new TreeSet<VersionNumber>();
+        TreeSet<VersionNumber> set = new TreeSet<>();
         for (VersionRange vr : data.values()) {
             if (vr.max != null) {
                 set.add(vr.max);
@@ -364,7 +362,7 @@ public class OldDataMonitor extends AdministrativeMonitor {
          * does occur: just means the user will be prompted to discard less than they should have been (and
          * would see the warning again after next restart).
          */
-        List<SaveableReference> removed = new ArrayList<SaveableReference>();
+        List<SaveableReference> removed = new ArrayList<>();
         for (Map.Entry<SaveableReference,VersionRange> entry : data.entrySet()) {
             if (matchingPredicate.apply(entry)) {
                 Saveable s = entry.getKey().get();
@@ -395,7 +393,7 @@ public class OldDataMonitor extends AdministrativeMonitor {
     private static SaveableReference referTo(Saveable s) {
         if (s instanceof Run) {
             Job parent = ((Run) s).getParent();
-            if (Jenkins.getInstance().getItemByFullName(parent.getFullName()) == parent) {
+            if (Jenkins.get().getItemByFullName(parent.getFullName()) == parent) {
                 return new RunSaveableReference((Run) s);
             }
         }

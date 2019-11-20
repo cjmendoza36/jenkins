@@ -31,6 +31,8 @@ import org.acegisecurity.Authentication;
 import jenkins.security.BasicApiTokenHelper;
 import org.acegisecurity.context.SecurityContextHolder;
 import org.acegisecurity.userdetails.UserDetails;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -102,7 +104,7 @@ public class BasicAuthenticationFilter implements Filter {
 
         String path = req.getServletPath();
         if(authorization==null || req.getUserPrincipal() !=null || path.startsWith("/secured/")
-        || !Jenkins.getInstance().isUseSecurity()) {
+        || !Jenkins.get().isUseSecurity()) {
             // normal requests, or security not enabled
             if(req.getUserPrincipal()!=null) {
                 // before we route this request, integrate the container authentication
