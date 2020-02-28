@@ -385,6 +385,7 @@ public class PluginWrapper implements Comparable<PluginWrapper>, ModelObject {
                 String osgiProperty = osgiProperties[i].trim();
                 if (osgiProperty.equalsIgnoreCase("resolution:=optional")) {
                     isOptional = true;
+                    break;
                 }
             }
             this.optional = isOptional;
@@ -438,7 +439,7 @@ public class PluginWrapper implements Comparable<PluginWrapper>, ModelObject {
     }
 
     public Api getApi() {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        Jenkins.get().checkPermission(Jenkins.SYSTEM_READ);
         return new Api(this);
     }
 
@@ -1251,7 +1252,7 @@ public class PluginWrapper implements Comparable<PluginWrapper>, ModelObject {
 
     @RequirePOST
     public HttpResponse doDoUninstall() throws IOException {
-        Jenkins jenkins = Jenkins.getActiveInstance();
+        Jenkins jenkins = Jenkins.get();
         
         jenkins.checkPermission(Jenkins.ADMINISTER);
         archive.delete();
