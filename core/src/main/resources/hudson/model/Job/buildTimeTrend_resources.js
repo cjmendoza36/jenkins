@@ -3,7 +3,7 @@
  */
 function buildTimeTrend_displayBuilds(data) {
 	var p = document.getElementById('trend');
-	var isMasterSlaveEnabled = 'true' === p.getAttribute("data-is-master-slave-enabled");
+	var isDistributedBuildsEnabled = 'true' === p.getAttribute("data-is-distributed-build-enabled");
 	var imagesURL = document.head.getAttribute('data-imagesurl');
 	var rootURL = document.head.getAttribute('data-rooturl');
 	
@@ -18,9 +18,15 @@ function buildTimeTrend_displayBuilds(data) {
 		update(e.displayName.escapeHTML())));
 		tr.insert(new Element('td', {data: e.duration}).
 		update(e.durationString.escapeHTML()));
-		if (isMasterSlaveEnabled) {
-			tr.insert(new Element('td').
-				update(e.builtOn ? new Element('a', {href: rootURL + '/computer/' + e.builtOn, 'class': 'model-link inside'}).update(e.builtOnStr) : e.builtOnStr));
+		if (isDistributedBuildsEnabled) {
+			var buildInfo = null;
+			var buildInfoStr = (e.builtOnStr || '').escapeHTML();
+			if(e.builtOn) {
+				buildInfo = new Element('a', {href: rootURL + '/computer/' + e.builtOn, 'class': 'model-link inside'}).update(buildInfoStr);
+			} else {
+				buildInfo = buildInfoStr;
+			}
+			tr.insert(new Element('td').update(buildInfo));
 		}
 		p.insert(tr);
 		Behaviour.applySubtree(tr);

@@ -68,10 +68,15 @@ public class LegacyApiTokenAdministrativeMonitor extends AdministrativeMonitor {
         return User.getAll().stream()
                 .anyMatch(user -> {
                     ApiTokenProperty apiTokenProperty = user.getProperty(ApiTokenProperty.class);
-                    return (apiTokenProperty != null && apiTokenProperty.hasLegacyToken());
+                    return apiTokenProperty != null && apiTokenProperty.hasLegacyToken();
                 });
     }
-    
+
+    @Override
+    public boolean isSecurity() {
+        return true;
+    }
+
     public HttpResponse doIndex() throws IOException {
         return new HttpRedirect("manage");
     }
@@ -82,7 +87,7 @@ public class LegacyApiTokenAdministrativeMonitor extends AdministrativeMonitor {
         return User.getAll().stream()
                 .filter(user -> {
                     ApiTokenProperty apiTokenProperty = user.getProperty(ApiTokenProperty.class);
-                    return (apiTokenProperty != null && apiTokenProperty.hasLegacyToken());
+                    return apiTokenProperty != null && apiTokenProperty.hasLegacyToken();
                 })
                 .collect(Collectors.toList());
     }

@@ -27,7 +27,6 @@ package jenkins.util.io;
 import hudson.Functions;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
 import org.jvnet.hudson.test.Issue;
@@ -60,8 +59,8 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -69,7 +68,6 @@ import static org.mockito.Mockito.mock;
 public class PathRemoverTest {
 
     @Rule public TemporaryFolder tmp = new TemporaryFolder();
-    @Rule public ExpectedException expectedException = ExpectedException.none();
     @Rule public Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
     @Rule public FileLockerRule locker = new FileLockerRule();
 
@@ -105,14 +103,9 @@ public class PathRemoverTest {
         given(attributes.isDirectory()).willReturn(false);
 
         PathRemover remover = PathRemover.newSimpleRemover();
-        try {
-            remover.forceRemoveFile(file.toPath());
-            fail("Should not have been deleted: " + file);
-        } catch (IOException e) {
-            assertThat(calcExceptionHierarchy(e), hasItem(FileSystemException.class));
-            assertThat(e.getMessage(), containsString(filename));
-        }
-
+        final IOException e = assertThrows(IOException.class, () -> remover.forceRemoveFile(file.toPath()));
+        assertThat(calcExceptionHierarchy(e), hasItem(FileSystemException.class));
+        assertThat(e.getMessage(), containsString(filename));
     }
 
     private static List<Class<?>> calcExceptionHierarchy(Throwable t) {
@@ -232,11 +225,8 @@ public class PathRemoverTest {
         touchWithFileName(f1, d1f1, d2f2);
         locker.acquireLock(d1f1);
         PathRemover remover = PathRemover.newRemoverWithStrategy(retriesAttempted -> retriesAttempted < 1);
-        expectedException.expectMessage(allOf(
-                containsString(dir.getPath()),
-                containsString("Tried 1 time.")
-        ));
-        remover.forceRemoveDirectoryContents(dir.toPath());
+        Exception e = assertThrows(IOException.class, () -> remover.forceRemoveDirectoryContents(dir.toPath()));
+        assertThat(e.getMessage(), allOf(containsString(dir.getPath()), containsString("Tried 1 time.")));
         assertFalse(d2.exists());
         assertFalse(f1.exists());
         assertFalse(d2f2.exists());
@@ -273,8 +263,8 @@ public class PathRemoverTest {
 
         locker.acquireLock(d1f1);
         PathRemover remover = PathRemover.newSimpleRemover();
-        expectedException.expectMessage(containsString(dir.getPath()));
-        remover.forceRemoveRecursive(dir.toPath());
+        Exception e = assertThrows(IOException.class, () -> remover.forceRemoveRecursive(dir.toPath()));
+        assertThat(e.getMessage(), containsString(dir.getPath()));
         assertTrue(dir.exists());
         assertTrue(d1.exists());
         assertTrue(d1f1.exists());
@@ -441,13 +431,12 @@ public class PathRemoverTest {
         for (int i = 0; i < lockedFiles; i++) {
             locker.acquireLock(files[i]);
         }
-        try {
-            PathRemover.newSimpleRemover().forceRemoveRecursive(dir.toPath());
-            fail("Deletion should have failed");
-        } catch (CompositeIOException e) {
-            assertThat(e.getSuppressed(), arrayWithSize(maxExceptions));
-            assertThat(e.getMessage(), endsWith("(Discarded " + (lockedFiles + 1 - maxExceptions) + " additional exceptions)"));
-        }
+
+        final CompositeIOException e = assertThrows(CompositeIOException.class,
+                () -> PathRemover.newSimpleRemover().forceRemoveRecursive(dir.toPath()));
+        assertThat(e.getSuppressed(), arrayWithSize(maxExceptions));
+        assertThat(e.getMessage(), endsWith("(Discarded " + (lockedFiles + 1 - maxExceptions) + " additional exceptions)"));
+
         assertTrue(dir.exists());
         assertThat(dir.listFiles().length, equalTo(lockedFiles));
     }

@@ -9,7 +9,6 @@ import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.io.Charsets;
 import org.apache.commons.io.output.NullOutputStream;
 import org.apache.commons.io.output.TeeOutputStream;
 import org.jvnet.hudson.crypto.CertificateUtil;
@@ -74,9 +73,9 @@ public class JSONSignatureValidator {
                         try {
                             c.checkValidity();
                         } catch (CertificateExpiredException e) { // even if the certificate isn't valid yet, we'll proceed it anyway
-                            warning = FormValidation.warning(e, String.format("Certificate %s has expired in %s", cert.toString(), name));
+                            warning = FormValidation.warning(e, String.format("Certificate %s has expired in %s", cert, name));
                         } catch (CertificateNotYetValidException e) {
-                            warning = FormValidation.warning(e, String.format("Certificate %s is not yet valid in %s", cert.toString(), name));
+                            warning = FormValidation.warning(e, String.format("Certificate %s is not yet valid in %s", cert, name));
                         }
                         LOGGER.log(Level.FINE, "Add certificate found in JSON document:\n\tsubjectDN: {0}\n\tissuer: {1}\n\tnotBefore: {2}\n\tnotAfter: {3}",
                                 new Object[] { c.getSubjectDN(), c.getIssuerDN(), c.getNotBefore(), c.getNotAfter() });
@@ -156,7 +155,7 @@ public class JSONSignatureValidator {
      */
     private FormValidation checkSpecificSignature(JSONObject json, JSONObject signatureJson, MessageDigest digest, String digestEntry, Signature signature, String signatureEntry, String digestName) throws IOException {
         // this is for computing a digest to check sanity
-        DigestOutputStream dos = new DigestOutputStream(new NullOutputStream(), digest);
+        DigestOutputStream dos = new DigestOutputStream(NullOutputStream.NULL_OUTPUT_STREAM, digest);
         SignatureOutputStream sos = new SignatureOutputStream(signature);
 
         String providedDigest = signatureJson.optString(digestEntry, null);
@@ -184,7 +183,7 @@ public class JSONSignatureValidator {
         //
         // Jenkins should ignore "digest"/"signature" pair. Accepting it creates a vulnerability that allows
         // the attacker to inject a fragment at the end of the json.
-        json.writeCanonical(new OutputStreamWriter(new TeeOutputStream(dos,sos), Charsets.UTF_8)).close();
+        json.writeCanonical(new OutputStreamWriter(new TeeOutputStream(dos,sos), StandardCharsets.UTF_8)).close();
 
         // did the digest match? this is not a part of the signature validation, but if we have a bug in the c14n
         // (which is more likely than someone tampering with update center), we can tell

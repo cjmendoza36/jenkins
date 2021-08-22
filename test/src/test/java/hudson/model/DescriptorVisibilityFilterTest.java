@@ -5,7 +5,7 @@ import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.allOf;
-import static org.junit.Assert.*;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import hudson.security.ACL;
@@ -77,7 +77,7 @@ public class DescriptorVisibilityFilterTest {
         public static final class HideDescriptor extends DescriptorVisibilityFilter {
             @Override
             public boolean filter(@CheckForNull Object context, @NonNull Descriptor descriptor) {
-                return !(descriptor instanceof DescriptorImpl);
+                return !(descriptor instanceof TestSecurityRealm.DescriptorImpl);
             }
         }
     }
@@ -105,7 +105,7 @@ public class DescriptorVisibilityFilterTest {
         public static final class HideDescriptor extends DescriptorVisibilityFilter {
             @Override
             public boolean filter(@CheckForNull Object context, @NonNull Descriptor descriptor) {
-                return !(descriptor instanceof DescriptorImpl);
+                return !(descriptor instanceof TestAuthStrategy.DescriptorImpl);
             }
         }
     }

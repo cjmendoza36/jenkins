@@ -24,8 +24,9 @@
 package hudson.security;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import org.acegisecurity.AccessDeniedException;
-import org.acegisecurity.Authentication;
+import jenkins.model.Jenkins;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 
 /**
  * Object that has an {@link ACL}
@@ -44,6 +45,9 @@ public interface AccessControlled {
      * Convenient short-cut for {@code getACL().checkPermission(permission)}
      */
     default void checkPermission(@NonNull Permission permission) throws AccessDeniedException {
+        if (Jenkins.getAuthentication2().equals(ACL.SYSTEM2)) {
+            return;
+        }
         getACL().checkPermission(permission);
     }
 
@@ -61,6 +65,9 @@ public interface AccessControlled {
      * Convenient short-cut for {@code getACL().hasPermission(permission)}
      */
     default boolean hasPermission(@NonNull Permission permission) {
+        if (Jenkins.getAuthentication2().equals(ACL.SYSTEM2)) {
+            return true;
+        }
         return getACL().hasPermission(permission);
     }
 
@@ -75,14 +82,23 @@ public interface AccessControlled {
     }
 
     /**
-     * Convenient short-cut for {@code getACL().hasPermission(a, permission)}
-     * @since 2.92
+     * Convenient short-cut for {@code getACL().hasPermission2(a, permission)}
+     * @since 2.266
      */
-    default boolean hasPermission(@NonNull Authentication a, @NonNull Permission permission) {
-        if (a == ACL.SYSTEM) {
+    default boolean hasPermission2(@NonNull Authentication a, @NonNull Permission permission) {
+        if (a.equals(ACL.SYSTEM2)) {
             return true;
         }
-        return getACL().hasPermission(a, permission);
+        return getACL().hasPermission2(a, permission);
+    }
+
+    /**
+     * @deprecated use {@link #hasPermission2}
+     * @since 2.92
+     */
+    @Deprecated
+    default boolean hasPermission(@NonNull org.acegisecurity.Authentication a, @NonNull Permission permission) {
+        return hasPermission2(a.toSpring(), permission);
     }
 
 }
