@@ -37,7 +37,7 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.JenkinsRule.WebClient;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
-import org.jvnet.hudson.test.recipes.PresetData;
+import org.jvnet.hudson.test.recipes.WithTimeout;
 
 /**
  * @author dty
@@ -120,8 +120,11 @@ public class DefaultCrumbIssuerTest {
         r.submit(p.getFormByName("config"));
    }
 
-    @PresetData(PresetData.DataSet.ANONYMOUS_READONLY)
     @Test public void apiXml() throws Exception {
+        r.jenkins.setSecurityRealm(r.createDummySecurityRealm());
+        r.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy()
+                .grant(Jenkins.READ).everywhere().toEveryone()
+        );
         WebClient wc = r.createWebClient();
         r.assertXPathValue(wc.goToXml("crumbIssuer/api/xml"), "//crumbRequestField", r.jenkins.getCrumbIssuer().getCrumbRequestField());
         String text = wc.goTo("crumbIssuer/api/xml?xpath=concat(//crumbRequestField,'=',//crumb)", "text/plain").getWebResponse().getContentAsString();
@@ -140,8 +143,11 @@ public class DefaultCrumbIssuerTest {
         wc.assertFails("crumbIssuer/api/xml?xpath=concat(//crumbRequestField,'=',//crumb)", HttpURLConnection.HTTP_FORBIDDEN); // perhaps interpretable as JS number
     }
 
-    @PresetData(PresetData.DataSet.ANONYMOUS_READONLY)
     @Test public void apiJson() throws Exception {
+        r.jenkins.setSecurityRealm(r.createDummySecurityRealm());
+        r.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy()
+                .grant(Jenkins.READ).everywhere().toEveryone()
+        );
         WebClient wc = r.createWebClient();
         String json = wc.goTo("crumbIssuer/api/json", "application/json").getWebResponse().getContentAsString();
         JSONObject jsonObject = JSONObject.fromObject(json);
@@ -169,6 +175,7 @@ public class DefaultCrumbIssuerTest {
 
     @Test
     @Issue("SECURITY-626")
+    @WithTimeout(300)
     public void crumbOnlyValidForOneSession() throws Exception {
         r.jenkins.setSecurityRealm(r.createDummySecurityRealm());
         DefaultCrumbIssuer issuer = new DefaultCrumbIssuer(false);
